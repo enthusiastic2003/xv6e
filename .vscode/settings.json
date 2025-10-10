@@ -11,6 +11,7 @@
         "cstdlib": "cpp",
         "kheap.h": "c",
         "stat.h": "c",
-        "param.h": "c"
+        "param.h": "c",
+        "liballoc.h": "c"
     }
 }

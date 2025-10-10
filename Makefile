@@ -36,7 +36,8 @@ KERNEL_OBJS = \
 	trap.o \
 	uart.o \
 	vectors.o \
-	vm.o
+	vm.o \
+	liballoc.o
 
 OBJS = $(addprefix $(OBJDIR)/,$(KERNEL_OBJS))
 
@@ -44,7 +45,7 @@ OBJS = $(addprefix $(OBJDIR)/,$(KERNEL_OBJS))
 ULIB = $(OBJDIR)/ulib.o $(OBJDIR)/usys.o $(OBJDIR)/printf.o $(OBJDIR)/umalloc.o
 
 # Cross-compiling (e.g., on Mac OS X)
-# TOOLPREFIX = i386-jos-elf
+TOOLPREFIX = i686-elf-
 
 # Using native tools (e.g., on X86 Linux)
 # TOOLPREFIX = 
@@ -224,10 +225,11 @@ clean:
 #--------------------------------------------
 # Emulators
 #--------------------------------------------
-ifndef CPUS
-CPUS := 2
-endif
-QEMUOPTS = -enable-kvm -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512
+# ifndef CPUS
+# CPUS := 1
+# endif
+CPUS := 1
+QEMUOPTS = -enable-kvm -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp 1 -m 512
 
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
 QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \

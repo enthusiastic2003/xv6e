@@ -31,8 +31,9 @@ struct kheap_metadata_page {
 
 #define REGIONS_PER_PAGE ((PGSIZE - sizeof(struct kheap_metadata_page)) / sizeof(struct vmem_region))
 
-void *kheap_alloc_pages(uint num_pages);
-void kheap_free_pages(void *vaddr, uint num_pages);
+void *liballoc_alloc(size_t num_pages);
+int liballoc_free(void *vaddr, size_t num_pages);
 void kheap_init(void);
-
+int liballoc_lock();
+int liballoc_unlock();
 #endif // KHEAP_H

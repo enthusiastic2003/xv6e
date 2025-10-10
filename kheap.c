@@ -92,7 +92,7 @@ recycle_vmem_region(struct vmem_region *region)
  * @return A pointer to the start of the allocated virtual memory, or 0 on failure.
  */
 void*
-kheap_alloc_pages(uint num_pages)
+liballoc_alloc(size_t num_pages)
 {
   if (num_pages == 0)
     return 0;
@@ -159,10 +159,10 @@ kheap_alloc_pages(uint num_pages)
  * @param vaddr The starting virtual address of the block to free. Must be page-aligned.
  * @param num_pages The number of 4KB pages in the block.
  */
-void kheap_free_pages(void *vaddr, uint num_pages)
+int liballoc_free(void *vaddr, size_t num_pages)
 {
   if (vaddr == 0 || num_pages == 0)
-    return;
+    return -1; // Invalid parameters
 
   uintptr_t va_to_free = (uintptr_t)vaddr;
 
@@ -208,6 +208,24 @@ void kheap_free_pages(void *vaddr, uint num_pages)
     node_to_check_forward->next = current->next;
     recycle_vmem_region(current);
   }
+
+  return 0; // Success
+}
+
+int liballoc_lock()
+{
+  // Acquire a lock for the kernel heap.
+  // This could be a spinlock or disabling interrupts.
+  //acquire(&kheap_lock);
+  return 0; // Success
+}
+
+int liballoc_unlock()
+{
+  // Release the lock for the kernel heap.
+  // This could be a spinlock or enabling interrupts.
+  //release(&kheap_lock);
+  return 0; // Success
 }
 
 void

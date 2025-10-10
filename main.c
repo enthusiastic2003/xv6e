@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "x86.h"
 #include "kheap.h"
+#include "liballoc.h"
 
 static void startothers(void);
 static void mpmain(void)  __attribute__((noreturn));
@@ -40,34 +41,35 @@ main(void)
   
   // In main(), after kheap_init()
 
-  cprintf("Testing kernel heap memory access...\n");
+  cprintf("Testing kernel heap (liballoc frontend)...\n");
 
-  // 1. Allocate a single page.
-  void* kheap_ptr = kheap_alloc_pages(1);
-  if (kheap_ptr == 0) {
-    panic("kheap test failed: allocation returned null");
+  // 1. Allocate space for a single integer using your malloc frontend.
+  // The prefix 'kheap_' is applied by the preprocessor.
+  volatile int *test_ptr = (int*)kheap_malloc(sizeof(int));
+  
+  if (test_ptr == 0) {
+    panic("kheap test failed: kheap_malloc returned null");
   }
-  cprintf("  - Allocated page at address: %p\n", kheap_ptr);
+  cprintf("  - Allocated memory at address: %p\n", test_ptr);
 
-  // 2. Cast the pointer and write to it.
-  // We use 'volatile' to ensure the compiler doesn't optimize away this memory access.
-  volatile int *test_ptr = (int*)kheap_ptr;
-  *test_ptr = 12345; // Write a known value.
-  cprintf("  - Wrote value 12345 to memory.\n");
+  // 2. Write to the allocated memory.
+  *test_ptr = 54321; // Using a different value for the new test.
+  cprintf("  - Wrote value 54321 to memory.\n");
 
   // 3. Read the value back and verify.
   int read_value = *test_ptr;
   cprintf("  - Read back value: %d\n", read_value);
 
-  if (read_value == 12345) {
+  if (read_value == 54321) {
     cprintf("  - SUCCESS: Value matches.\n");
   } else {
     cprintf("  - FAILURE: Value mismatch!\n");
   }
 
-  // 4. Free the memory.
-  kheap_free_pages(kheap_ptr, 1);
-  cprintf("  - Freed page at address: %p\n", kheap_ptr);
+  // 4. Free the memory using your free frontend.
+  // Note that kheap_free only needs the pointer, not the size.
+  kheap_free((void*)test_ptr);
+  cprintf("  - Freed memory at address: %p\n", test_ptr);
   cprintf("Test complete.\n");
 
   userinit();      // first user process
