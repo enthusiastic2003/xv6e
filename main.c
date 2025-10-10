@@ -5,6 +5,7 @@
 #include "mmu.h"
 #include "proc.h"
 #include "x86.h"
+#include "kheap.h"
 
 static void startothers(void);
 static void mpmain(void)  __attribute__((noreturn));
@@ -17,8 +18,9 @@ extern char end[]; // first address after kernel loaded from ELF file
 int
 main(void)
 {
+    cprintf("Kernel end: %p\n", V2P(end));
   kinit1(end, P2V(4*1024*1024)); // phys page allocator
-  kvmalloc();      // kernel page table
+  kvmalloc();      // kernel page tables
   mpinit();        // detect other processors
   lapicinit();     // interrupt controller
   seginit();       // segment descriptors
@@ -33,6 +35,41 @@ main(void)
   ideinit();       // disk 
   startothers();   // start other processors
   kinit2(P2V(4*1024*1024), P2V(PHYSTOP)); // must come after startothers()
+
+  kheap_init();    // <-- INITIALIZE KERNEL HEAP HERE
+  
+  // In main(), after kheap_init()
+
+  cprintf("Testing kernel heap memory access...\n");
+
+  // 1. Allocate a single page.
+  void* kheap_ptr = kheap_alloc_pages(1);
+  if (kheap_ptr == 0) {
+    panic("kheap test failed: allocation returned null");
+  }
+  cprintf("  - Allocated page at address: %p\n", kheap_ptr);
+
+  // 2. Cast the pointer and write to it.
+  // We use 'volatile' to ensure the compiler doesn't optimize away this memory access.
+  volatile int *test_ptr = (int*)kheap_ptr;
+  *test_ptr = 12345; // Write a known value.
+  cprintf("  - Wrote value 12345 to memory.\n");
+
+  // 3. Read the value back and verify.
+  int read_value = *test_ptr;
+  cprintf("  - Read back value: %d\n", read_value);
+
+  if (read_value == 12345) {
+    cprintf("  - SUCCESS: Value matches.\n");
+  } else {
+    cprintf("  - FAILURE: Value mismatch!\n");
+  }
+
+  // 4. Free the memory.
+  kheap_free_pages(kheap_ptr, 1);
+  cprintf("  - Freed page at address: %p\n", kheap_ptr);
+  cprintf("Test complete.\n");
+
   userinit();      // first user process
   mpmain();        // finish this processor's setup
 }

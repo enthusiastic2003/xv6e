@@ -79,6 +79,79 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
   return 0;
 }
 
+
+/**
+ * @brief Maps a single physical page to a single virtual page in the kernel's page directory.
+ * @param vaddr The virtual address to map to.
+ * @param paddr The physical address to map from.
+ * @param perm The permissions for the page (PTE_W, etc.).
+ * @return 0 on success, -1 on failure.
+ */
+int
+map_kernel_page(void *vaddr, uint paddr, int perm)
+{
+  // 1. Get the kernel's page directory.
+  pde_t *pgdir = kpgdir;
+  
+  // 2. Find the address of the PTE for the virtual address.
+  // The '1' indicates that page tables should be allocated if they don't exist.
+  pte_t *pte = walkpgdir(pgdir, vaddr, 1);
+
+  if (pte == 0)
+    return -1; // Out of memory
+
+  // 3. Set the PTE to map to the physical address with the given permissions.
+  *pte = paddr | perm | PTE_P;
+  
+  return 0;
+}
+
+
+/**
+ * @brief Unmaps a single virtual page in the kernel's page directory.
+ * @param vaddr The virtual address to unmap.
+ */
+void
+unmap_kernel_page(void *vaddr)
+{
+  pde_t *pgdir = kpgdir;
+  pte_t *pte = walkpgdir(pgdir, vaddr, 0); // '0' means don't create new page tables.
+
+  if (pte == 0 || (*pte & PTE_P) == 0)
+    return; // Page was not mapped, nothing to do.
+
+  // Invalidate the mapping by clearing the PTE.
+  *pte = 0;
+}
+
+/**
+ * @brief Frees the physical page mapped at a given virtual address and then unmaps it.
+ * @param vaddr The virtual address of the page to free and unmap.
+ */
+void
+kfree_and_unmap_page(void *vaddr)
+{
+  pde_t *pgdir = kpgdir;
+  pte_t *pte = walkpgdir(pgdir, vaddr, 0); // Find the PTE
+
+  if (pte == 0 || (*pte & PTE_P) == 0)
+    return; // Page isn't mapped, nothing to do.
+
+  // 1. Get the physical address from the PTE.
+  uint paddr = PTE_ADDR(*pte);
+
+  // 2. Free the physical page.
+  // We must convert the physical address back to a kernel virtual address
+  // because kfree() expects a pointer it can use.
+  kfree((char*)P2V(paddr));
+
+  // 3. Now, unmap the virtual address by clearing the PTE.
+  *pte = 0;
+}
+
+
+
+
 // There is one page table per process, plus one that's used when
 // a CPU is not running any process (kpgdir). The kernel uses the
 // current process's page table during system calls and interrupts;

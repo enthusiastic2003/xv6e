@@ -6,10 +6,18 @@
 #include <assert.h>
 
 #define stat xv6_stat  // avoid clash with host struct stat
-#include "types.h"
+// #include "types.h"
 #include "fs.h"
 #include "stat.h"
 #include "param.h"
+
+typedef unsigned int   uint;
+typedef unsigned short ushort;
+typedef unsigned char  uchar;
+typedef uint pde_t;
+// Defines an unsigned integer type that is wide enough to hold a pointer.
+// On a 32-bit machine, a 'uint' is sufficient.
+typedef uint uintptr_t;
 
 #ifndef static_assert
 #define static_assert(a, b) do { switch (0) case 0: case (a): ; } while (0)

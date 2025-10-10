@@ -16,6 +16,7 @@ KERNEL_OBJS = \
 	ide.o \
 	ioapic.o \
 	kalloc.o \
+	kheap.o \
 	kbd.o \
 	lapic.o \
 	log.o \
@@ -226,7 +227,7 @@ clean:
 ifndef CPUS
 CPUS := 2
 endif
-QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512
+QEMUOPTS = -enable-kvm -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512
 
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
 QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \

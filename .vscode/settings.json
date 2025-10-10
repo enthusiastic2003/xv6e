@@ -1,5 +1,16 @@
 {
     "files.associations": {
-        "x86.h": "c"
+        "x86.h": "c",
+        "proc.h": "c",
+        "mmu.h": "c",
+        "memlayout.h": "c",
+        "types.h": "c",
+        "defs.h": "c",
+        "elf.h": "c",
+        "user.h": "c",
+        "cstdlib": "cpp",
+        "kheap.h": "c",
+        "stat.h": "c",
+        "param.h": "c"
     }
 }
