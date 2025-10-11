@@ -6,8 +6,15 @@
 OBJDIR := obj
 $(shell mkdir -p $(OBJDIR))
 
+# VM Submodule Sources
+VM_SRC = \
+    vm/kalloc.c \
+    vm/kheap.c \
+    vm/liballoc.c \
+    vm/vm.c
+
 # Kernel object files
-KERNEL_OBJS = \
+OTHER_KERNEL_OBJS = \
 	bio.o \
 	console.o \
 	exec.o \
@@ -15,8 +22,6 @@ KERNEL_OBJS = \
 	fs.o \
 	ide.o \
 	ioapic.o \
-	kalloc.o \
-	kheap.o \
 	kbd.o \
 	lapic.o \
 	log.o \
@@ -36,10 +41,11 @@ KERNEL_OBJS = \
 	trap.o \
 	uart.o \
 	vectors.o \
-	vm.o \
-	liballoc.o
 
-OBJS = $(addprefix $(OBJDIR)/,$(KERNEL_OBJS))
+# Generate object file paths from sources and combine for the linker
+VM_OBJS = $(addprefix $(OBJDIR)/, $(notdir $(VM_SRC:.c=.o)))
+OTHER_OBJS = $(addprefix $(OBJDIR)/, $(OTHER_KERNEL_OBJS))
+OBJS = $(OTHER_OBJS) $(VM_OBJS)
 
 # User library
 ULIB = $(OBJDIR)/ulib.o $(OBJDIR)/usys.o $(OBJDIR)/printf.o $(OBJDIR)/umalloc.o
@@ -147,6 +153,9 @@ $(OBJS): | $(OBJDIR)
 
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
+
+$(OBJDIR)/%.o: vm/%.c
+	$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@
 
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@

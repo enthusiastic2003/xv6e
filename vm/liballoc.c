@@ -1,4 +1,5 @@
-#include "liballoc.h"
+#include "vm.h"
+#include "kheap.h"
 
 /**  Durand's Amazing Super Duper Memory functions.  */
 
@@ -238,7 +239,7 @@ static struct liballoc_major *allocate_new_page( unsigned int size )
 	
 
 
-void *PREFIX(malloc)(size_t req_size)
+void *kheap_malloc(size_t req_size)
 {
 	int startedBet = 0;
 	unsigned long long bestSize = 0;
@@ -268,7 +269,7 @@ void *PREFIX(malloc)(size_t req_size)
 		FLUSH();
 		#endif
 		liballoc_unlock();
-		return PREFIX(malloc)(1);
+		return kheap_malloc(1);
 	}
 	
 
@@ -591,7 +592,7 @@ void *PREFIX(malloc)(size_t req_size)
 
 
 
-void PREFIX(free)(void *ptr)
+void kheap_free(void *ptr)
 {
 	struct liballoc_minor *min;
 	struct liballoc_major *maj;
@@ -720,14 +721,14 @@ void PREFIX(free)(void *ptr)
 
 
 
-void* PREFIX(calloc)(size_t nobj, size_t size)
+void* kheap_calloc(size_t nobj, size_t size)
 {
        int real_size;
        void *p;
 
        real_size = nobj * size;
-       
-       p = PREFIX(malloc)( real_size );
+
+       p = kheap_malloc( real_size );
 
        liballoc_memset( p, 0, real_size );
 
@@ -735,8 +736,7 @@ void* PREFIX(calloc)(size_t nobj, size_t size)
 }
 
 
-
-void*   PREFIX(realloc)(void *p, size_t size)
+void*   kheap_realloc(void *p, size_t size)
 {
 	void *ptr;
 	struct liballoc_minor *min;
@@ -745,12 +745,12 @@ void*   PREFIX(realloc)(void *p, size_t size)
 	// Honour the case of size == 0 => free old and return NULL
 	if ( size == 0 )
 	{
-		PREFIX(free)( p );
+		kheap_free( p );
 		return NULL;
 	}
 
 	// In the case of a NULL pointer, return a simple malloc.
-	if ( p == NULL ) return PREFIX(malloc)( size );
+	if ( p == NULL ) return kheap_malloc( size );
 
 	// Unalign the pointer if required.
 	ptr = p;
@@ -820,9 +820,9 @@ void*   PREFIX(realloc)(void *p, size_t size)
 	liballoc_unlock();
 
 	// If we got here then we're reallocating to a block bigger than us.
-	ptr = PREFIX(malloc)( size );					// We need to allocate new memory
+	ptr = kheap_malloc( size );					// We need to allocate new memory
 	liballoc_memcpy( ptr, p, real_size );
-	PREFIX(free)( p );
+	kheap_free( p );
 
 	return ptr;
 }

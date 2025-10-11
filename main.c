@@ -5,8 +5,7 @@
 #include "mmu.h"
 #include "proc.h"
 #include "x86.h"
-#include "kheap.h"
-#include "liballoc.h"
+#include <vm/vm.h>
 
 static void startothers(void);
 static void mpmain(void)  __attribute__((noreturn));

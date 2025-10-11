@@ -1,6 +1,6 @@
 #include "kheap.h"
 #include "vm.h"
-#include "defs.h"
+#include <defs.h>
 
 struct kheap_metadata_page *metadata_pages = NULL; // Head of the linked list of metadata pages.
 struct vmem_region *vmem_free_list_head = NULL; // Head of the free list of virtual memory regions.

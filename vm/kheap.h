@@ -4,6 +4,7 @@
 #include "memlayout.h"
 #include "types.h"
 #include "mmu.h"
+#include "vm.h"
 
 // Kernel heap layout
 #define KHEAP_START (P2V(PHYSTOP))      // KHeap Virtual Address Start: Start right after mapped physical RAM
@@ -33,7 +34,6 @@ struct kheap_metadata_page {
 
 void *liballoc_alloc(size_t num_pages);
 int liballoc_free(void *vaddr, size_t num_pages);
-void kheap_init(void);
 int liballoc_lock();
 int liballoc_unlock();
 #endif // KHEAP_H

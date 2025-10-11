@@ -7,6 +7,7 @@
 #include "spinlock.h"
 #include "sleeplock.h"
 #include "file.h"
+#include <vm/vm.h>
 
 #define PIPESIZE 512
 

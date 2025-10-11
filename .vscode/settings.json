@@ -12,6 +12,8 @@
         "kheap.h": "c",
         "stat.h": "c",
         "param.h": "c",
-        "liballoc.h": "c"
+        "liballoc.h": "c",
+        "vm.h": "c",
+        "file.h": "c"
     }
 }
