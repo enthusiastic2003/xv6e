@@ -1,96 +1,44 @@
 #--------------------------------------------
-# xv6 Makefile (clean build with obj/ directory)
+# xv6 Makefile (modern out-of-tree build)
 #--------------------------------------------
 
-# Object directory
-OBJDIR := obj
-$(shell mkdir -p $(OBJDIR))
+SHELL := /bin/sh
+.RECIPEPREFIX := >
 
-# VM Submodule Sources
-VM_SRC = \
-    vm/kalloc.c \
-    vm/kheap.c \
-    vm/liballoc.c \
-    vm/vm.c
+# Directories
+OUT_DIR ?= build
+OBJ_DIR := $(OUT_DIR)/obj
+BIN_DIR := $(OUT_DIR)/bin
+GEN_DIR := $(OUT_DIR)/gen
+ASM_DIR := $(OUT_DIR)/asm
+SYM_DIR := $(OUT_DIR)/sym
 
-# Kernel object files
-OTHER_KERNEL_OBJS = \
-	bio.o \
-	console.o \
-	exec.o \
-	file.o \
-	fs.o \
-	ide.o \
-	ioapic.o \
-	kbd.o \
-	lapic.o \
-	log.o \
-	main.o \
-	mp.o \
-	picirq.o \
-	pipe.o \
-	proc.o \
-	sleeplock.o \
-	spinlock.o \
-	string.o \
-	swtch.o \
-	syscall.o \
-	sysfile.o \
-	sysproc.o \
-	trapasm.o \
-	trap.o \
-	uart.o \
-	vectors.o \
+# Toolchain
+TOOLCHAIN_ROOT ?= /home/sirjanh/i686-elf-tools-linux
+TOOLPREFIX ?= $(TOOLCHAIN_ROOT)/bin/i686-elf-
+CC := $(TOOLPREFIX)gcc
+LD := $(TOOLPREFIX)ld
+OBJCOPY := $(TOOLPREFIX)objcopy
+OBJDUMP := $(TOOLPREFIX)objdump
+HOSTCC := gcc
 
-# Generate object file paths from sources and combine for the linker
-VM_OBJS = $(addprefix $(OBJDIR)/, $(notdir $(VM_SRC:.c=.o)))
-OTHER_OBJS = $(addprefix $(OBJDIR)/, $(OTHER_KERNEL_OBJS))
-OBJS = $(OTHER_OBJS) $(VM_OBJS)
-
-# User library
-ULIB = $(OBJDIR)/ulib.o $(OBJDIR)/usys.o $(OBJDIR)/printf.o $(OBJDIR)/umalloc.o
-
-# Cross-compiling (e.g., on Mac OS X)
-TOOLPREFIX = i686-elf-
-
-# Using native tools (e.g., on X86 Linux)
-# TOOLPREFIX = 
-
-# ifndef TOOLPREFIX
-# TOOLPREFIX := $(shell if i386-jos-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/dev/null 2>&1; \
-# 	then echo 'i386-jos-elf-'; \
-# 	elif objdump -i 2>&1 | grep 'elf32-i386' >/dev/null 2>&1; \
-# 	then echo ''; \
-# 	else echo "***" 1>&2; \
-# 	echo "*** Error: Couldn't find an i386-*-elf version of GCC/binutils." 1>&2; \
-# 	echo "*** Is the directory with i386-jos-elf-gcc in your PATH?" 1>&2; \
-# 	exit 1; fi)
-# endif
-
-# # QEMU detection
+# QEMU detection
 ifndef QEMU
-QEMU = $(shell if which qemu > /dev/null; \
-	then echo qemu; \
-	elif which qemu-system-i386 > /dev/null; \
-	then echo qemu-system-i386; \
-	elif which qemu-system-x86_64 > /dev/null; \
-	then echo qemu-system-x86_64; \
-	else echo "*** Error: Could not find QEMU"; exit 1; fi)
+QEMU := $(shell if command -v qemu >/dev/null 2>&1; then echo qemu; \
+ elif command -v qemu-system-i386 >/dev/null 2>&1; then echo qemu-system-i386; \
+ elif command -v qemu-system-x86_64 >/dev/null 2>&1; then echo qemu-system-x86_64; \
+ else echo "*** Error: Could not find QEMU"; exit 1; fi)
 endif
 
-# Tools
-CC = $(TOOLPREFIX)gcc
-AS = $(TOOLPREFIX)as
-LD = $(TOOLPREFIX)ld
-OBJCOPY = $(TOOLPREFIX)objcopy
-OBJDUMP = $(TOOLPREFIX)objdump
-
-CFLAGS = -Wno-infinite-recursion -g -fno-pic -static -fno-builtin -Wno-array-bounds -fno-strict-aliasing -Os -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer
-CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
-ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
+# Flags
+CPPFLAGS := -nostdinc -I. -Iinclude -Iinclude/vm
+CFLAGS := -Wno-infinite-recursion -g -fno-pic -static -fno-builtin \
+ -Wno-array-bounds -fno-strict-aliasing -Os -Wall -Werror -ggdb -m32 \
+ -fno-omit-frame-pointer
 LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
 
-# Disable PIE if possible
+# Disable stack protector / PIE when supported
+CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]no-pie'),)
 CFLAGS += -fno-pie -no-pie
 endif
@@ -98,201 +46,223 @@ ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
 endif
 
-#--------------------------------------------
-# Build targets
-#--------------------------------------------
+# Sources
+KERNEL_C_SRCS := \
+ kernel/bio.c \
+ kernel/console.c \
+ kernel/exec.c \
+ kernel/file.c \
+ kernel/fs.c \
+ kernel/ide.c \
+ kernel/ioapic.c \
+ kernel/kbd.c \
+ kernel/lapic.c \
+ kernel/log.c \
+ kernel/main.c \
+ kernel/mp.c \
+ kernel/picirq.c \
+ kernel/pipe.c \
+ kernel/proc.c \
+ kernel/sleeplock.c \
+ kernel/spinlock.c \
+ kernel/string.c \
+ kernel/syscall.c \
+ kernel/sysfile.c \
+ kernel/sysproc.c \
+ kernel/trap.c \
+ kernel/uart.c \
+ mm/kalloc.c \
+ mm/kheap.c \
+ mm/liballoc.c \
+ mm/vm.c
 
-xv6.img: bootblock kernel
-	dd if=/dev/zero of=xv6.img count=10000
-	dd if=bootblock of=xv6.img conv=notrunc
-	dd if=kernel of=xv6.img seek=1 conv=notrunc
+KERNEL_S_SRCS := \
+ arch/x86/kernel/swtch.S \
+ arch/x86/kernel/trapasm.S
 
-xv6memfs.img: bootblock kernelmemfs
-	dd if=/dev/zero of=xv6memfs.img count=10000
-	dd if=bootblock of=xv6memfs.img conv=notrunc
-	dd if=kernelmemfs of=xv6memfs.img seek=1 conv=notrunc
+KERNEL_MEMFS_C_SRCS := $(filter-out kernel/ide.c,$(KERNEL_C_SRCS)) kernel/memide.c
 
-#--------------------------------------------
-# Bootblock
-#--------------------------------------------
-bootblock: $(OBJDIR)/bootmain.o $(OBJDIR)/bootasm.o
-	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o $(OBJDIR)/bootblock.o $(OBJDIR)/bootasm.o $(OBJDIR)/bootmain.o
-	$(OBJDUMP) -S $(OBJDIR)/bootblock.o > bootblock.asm
-	$(OBJCOPY) -S -O binary -j .text $(OBJDIR)/bootblock.o bootblock
-	./sign.pl bootblock
+USER_PROGS := \
+ cat \
+ echo \
+ forktest \
+ grep \
+ init \
+ kill \
+ ln \
+ ls \
+ mkdir \
+ rm \
+ sh \
+ stressfs \
+ usertests \
+ wc \
+ zombie
 
-$(OBJDIR)/bootmain.o: bootmain.c
-	$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@
+USER_LIB_SRCS := user/ulib.c user/usys.S user/printf.c user/umalloc.c
 
-$(OBJDIR)/bootasm.o: bootasm.S
-	$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@
+# Paths
+ENTRY_OBJ := $(OBJ_DIR)/arch/x86/kernel/entry.o
+BOOTMAIN_OBJ := $(OBJ_DIR)/arch/x86/boot/bootmain.o
+BOOTASM_OBJ := $(OBJ_DIR)/arch/x86/boot/bootasm.o
+ENTRYOTHER_OBJ := $(OBJ_DIR)/arch/x86/kernel/entryother.o
+INITCODE_OBJ := $(OBJ_DIR)/arch/x86/kernel/initcode.o
+VECTORS_GEN := $(GEN_DIR)/vectors.S
+VECTORS_OBJ := $(OBJ_DIR)/gen/vectors.o
 
-#--------------------------------------------
-# Entry / Initcode
-#--------------------------------------------
-$(OBJDIR)/entryother.o: entryother.S
-	$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@
+KERNEL_OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(KERNEL_C_SRCS)) \
+ $(patsubst %.S,$(OBJ_DIR)/%.o,$(KERNEL_S_SRCS)) \
+ $(VECTORS_OBJ)
 
-entryother: $(OBJDIR)/entryother.o
-	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7000 -o $(OBJDIR)/bootblockother.o $(OBJDIR)/entryother.o
-	$(OBJCOPY) -S -O binary -j .text $(OBJDIR)/bootblockother.o entryother
-	$(OBJDUMP) -S $(OBJDIR)/bootblockother.o > entryother.asm
+KERNEL_MEMFS_OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(KERNEL_MEMFS_C_SRCS)) \
+ $(patsubst %.S,$(OBJ_DIR)/%.o,$(KERNEL_S_SRCS)) \
+ $(VECTORS_OBJ)
 
-$(OBJDIR)/initcode.o: initcode.S
-	$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@
+USER_LIB_OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(filter %.c,$(USER_LIB_SRCS))) \
+ $(patsubst %.S,$(OBJ_DIR)/%.o,$(filter %.S,$(USER_LIB_SRCS)))
+USER_APP_OBJS := $(addprefix $(OBJ_DIR)/user/,$(addsuffix .o,$(USER_PROGS)))
+UPROGS := $(addprefix $(BIN_DIR)/_,$(USER_PROGS))
 
-initcode: $(OBJDIR)/initcode.o
-	$(LD) $(LDFLAGS) -N -e start -Ttext 0 -o $(OBJDIR)/initcode.out $(OBJDIR)/initcode.o
-	$(OBJCOPY) -S -O binary $(OBJDIR)/initcode.out initcode
-	$(OBJDUMP) -S $(OBJDIR)/initcode.o > initcode.asm
+MKFS := $(BIN_DIR)/mkfs
+FS_IMG := $(BIN_DIR)/fs.img
+BOOTBLOCK := $(BIN_DIR)/bootblock
+ENTRYOTHER := $(BIN_DIR)/entryother
+INITCODE := $(BIN_DIR)/initcode
+KERNEL := $(BIN_DIR)/kernel
+KERNELMEMFS := $(BIN_DIR)/kernelmemfs
+XV6_IMG := $(BIN_DIR)/xv6.img
+XV6_MEMFS_IMG := $(BIN_DIR)/xv6memfs.img
+INITCODE_BLOB_OBJ := $(OBJ_DIR)/blob/initcode.blob.o
+ENTRYOTHER_BLOB_OBJ := $(OBJ_DIR)/blob/entryother.blob.o
+FSIMG_BLOB_OBJ := $(OBJ_DIR)/blob/fsimg.blob.o
 
-#--------------------------------------------
-# Kernel
-#--------------------------------------------
-$(OBJS): | $(OBJDIR)
+.PHONY: all clean qemu qemu-nox qemu-gdb qemu-nox-gdb qemu-memfs dirs
 
-$(OBJDIR):
-	mkdir -p $(OBJDIR)
+all: $(XV6_IMG)
 
-$(OBJDIR)/%.o: vm/%.c
-	$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@
+dirs:
+>@mkdir -p $(OBJ_DIR) $(BIN_DIR) $(GEN_DIR) $(ASM_DIR) $(SYM_DIR)
 
-$(OBJDIR)/%.o: %.c
-	$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@
+$(OBJ_DIR)/%.o: %.c | dirs
+>@mkdir -p $(dir $@)
+>$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
 
-$(OBJDIR)/%.o: %.S
-	$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@
+$(OBJ_DIR)/%.o: %.S | dirs
+>@mkdir -p $(dir $@)
+>$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
 
-vectors.S: vectors.pl
-	./vectors.pl > vectors.S
+$(VECTORS_GEN): arch/x86/kernel/vectors.pl | dirs
+>./arch/x86/kernel/vectors.pl > $@
 
-kernel: $(OBJS) $(OBJDIR)/entry.o entryother initcode kernel.ld
-	$(LD) $(LDFLAGS) -T kernel.ld -o kernel $(OBJDIR)/entry.o $(OBJS) -b binary initcode entryother
-	$(OBJDUMP) -S kernel > kernel.asm
-	$(OBJDUMP) -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernel.sym
+$(VECTORS_OBJ): $(VECTORS_GEN) | dirs
+>@mkdir -p $(dir $@)
+>$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
 
-# Kernelmemfs
-MEMFSOBJS = $(filter-out ide.o,$(KERNEL_OBJS))
-MEMFSOBJS := $(addprefix $(OBJDIR)/,$(MEMFSOBJS))
-kernelmemfs: $(MEMFSOBJS) $(OBJDIR)/entry.o entryother initcode fs.img
-	$(LD) $(LDFLAGS) -T kernel.ld -o kernelmemfs $(OBJDIR)/entry.o $(MEMFSOBJS) -b binary initcode entryother fs.img
-	$(OBJDUMP) -S kernelmemfs > kernelmemfs.asm
-	$(OBJDUMP) -t kernelmemfs | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernelmemfs.sym
+$(BOOTBLOCK): $(BOOTMAIN_OBJ) $(BOOTASM_OBJ) scripts/sign.pl | dirs
+>$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o $(OBJ_DIR)/bootblock.o $(BOOTASM_OBJ) $(BOOTMAIN_OBJ)
+>$(OBJDUMP) -S $(OBJ_DIR)/bootblock.o > $(ASM_DIR)/bootblock.asm
+>$(OBJCOPY) -S -O binary -j .text $(OBJ_DIR)/bootblock.o $@
+>./scripts/sign.pl $@
 
-#--------------------------------------------
-# User programs
-#--------------------------------------------
-UPROGS=\
-	_cat\
-	_echo\
-	_forktest\
-	_grep\
-	_init\
-	_kill\
-	_ln\
-	_ls\
-	_mkdir\
-	_rm\
-	_sh\
-	_stressfs\
-	_usertests\
-	_wc\
-	_zombie\
+$(ENTRYOTHER): $(ENTRYOTHER_OBJ) | dirs
+>$(LD) $(LDFLAGS) -N -e start -Ttext 0x7000 -o $(OBJ_DIR)/entryother.out $(ENTRYOTHER_OBJ)
+>$(OBJCOPY) -S -O binary -j .text $(OBJ_DIR)/entryother.out $@
+>$(OBJDUMP) -S $(OBJ_DIR)/entryother.out > $(ASM_DIR)/entryother.asm
 
-$(OBJDIR)/%.o: %.c
-	$(CC) $(CFLAGS) -I. -c $< -o $@
+$(INITCODE): $(INITCODE_OBJ) | dirs
+>$(LD) $(LDFLAGS) -N -e start -Ttext 0 -o $(OBJ_DIR)/initcode.out $(INITCODE_OBJ)
+>$(OBJCOPY) -S -O binary $(OBJ_DIR)/initcode.out $@
+>$(OBJDUMP) -S $(INITCODE_OBJ) > $(ASM_DIR)/initcode.asm
 
-$(OBJDIR)/%.o: %.S
-	$(CC) $(CFLAGS) -I. -c $< -o $@
+$(INITCODE_BLOB_OBJ): $(INITCODE) | dirs
+>@mkdir -p $(dir $@)
+>$(LD) -r -b binary $(INITCODE) -o $@
+>$(OBJCOPY) --redefine-sym _binary_build_bin_initcode_start=_binary_initcode_start --redefine-sym _binary_build_bin_initcode_end=_binary_initcode_end --redefine-sym _binary_build_bin_initcode_size=_binary_initcode_size $@
 
-_%: $(OBJDIR)/%.o $(ULIB)
-	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $@ $^
-	$(OBJDUMP) -S $@ > $*.asm
-	$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $*.sym
+$(ENTRYOTHER_BLOB_OBJ): $(ENTRYOTHER) | dirs
+>@mkdir -p $(dir $@)
+>$(LD) -r -b binary $(ENTRYOTHER) -o $@
+>$(OBJCOPY) --redefine-sym _binary_build_bin_entryother_start=_binary_entryother_start --redefine-sym _binary_build_bin_entryother_end=_binary_entryother_end --redefine-sym _binary_build_bin_entryother_size=_binary_entryother_size $@
 
-_forktest: $(OBJDIR)/forktest.o $(ULIB)
-	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o _forktest $(OBJDIR)/forktest.o $(OBJDIR)/ulib.o $(OBJDIR)/usys.o
-	$(OBJDUMP) -S _forktest > forktest.asm
+$(FSIMG_BLOB_OBJ): $(FS_IMG) | dirs
+>@mkdir -p $(dir $@)
+>$(LD) -r -b binary $(FS_IMG) -o $@
+>$(OBJCOPY) --redefine-sym _binary_build_bin_fs_img_start=_binary_fs_img_start --redefine-sym _binary_build_bin_fs_img_end=_binary_fs_img_end --redefine-sym _binary_build_bin_fs_img_size=_binary_fs_img_size $@
 
-#--------------------------------------------
-# mkfs
-#--------------------------------------------
-mkfs: mkfs.c fs.h
-	gcc -Werror -Wall -o mkfs mkfs.c
+$(KERNEL): $(ENTRY_OBJ) $(KERNEL_OBJS) $(ENTRYOTHER) $(INITCODE) $(ENTRYOTHER_BLOB_OBJ) $(INITCODE_BLOB_OBJ) linker/kernel.ld | dirs
+>$(LD) $(LDFLAGS) -T linker/kernel.ld -o $@ $(ENTRY_OBJ) $(KERNEL_OBJS) $(INITCODE_BLOB_OBJ) $(ENTRYOTHER_BLOB_OBJ)
+>$(OBJDUMP) -S $@ > $(ASM_DIR)/kernel.asm
+>$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(SYM_DIR)/kernel.sym
 
-fs.img: mkfs README $(UPROGS)
-	./mkfs fs.img README $(UPROGS)
+$(KERNELMEMFS): $(ENTRY_OBJ) $(KERNEL_MEMFS_OBJS) $(ENTRYOTHER) $(INITCODE) $(FS_IMG) $(ENTRYOTHER_BLOB_OBJ) $(INITCODE_BLOB_OBJ) $(FSIMG_BLOB_OBJ) linker/kernel.ld | dirs
+>$(LD) $(LDFLAGS) -T linker/kernel.ld -o $@ $(ENTRY_OBJ) $(KERNEL_MEMFS_OBJS) $(INITCODE_BLOB_OBJ) $(ENTRYOTHER_BLOB_OBJ) $(FSIMG_BLOB_OBJ)
+>$(OBJDUMP) -S $@ > $(ASM_DIR)/kernelmemfs.asm
+>$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(SYM_DIR)/kernelmemfs.sym
 
-#--------------------------------------------
-# Clean
-#--------------------------------------------
-.PRECIOUS: %.o
+$(BIN_DIR)/_%: $(OBJ_DIR)/user/%.o $(USER_LIB_OBJS) | dirs
+>$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $@ $^
+>$(OBJDUMP) -S $@ > $(ASM_DIR)/$*.asm
+>$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(SYM_DIR)/$*.sym
 
-clean:
-	rm -rf $(OBJDIR) *.asm *.sym *.img kernel kernelmemfs bootblock entryother initcode initcode.out mkfs $(UPROGS) *.d *.gdbinit
+$(BIN_DIR)/_forktest: $(OBJ_DIR)/user/forktest.o $(OBJ_DIR)/user/ulib.o $(OBJ_DIR)/user/usys.o | dirs
+>$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $@ $^
+>$(OBJDUMP) -S $@ > $(ASM_DIR)/forktest.asm
 
-#--------------------------------------------
-# Emulators
-#--------------------------------------------
-# ifndef CPUS
-# CPUS := 1
-# endif
-CPUS := 1
-QEMUOPTS = -enable-kvm -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp 1 -m 512
+$(MKFS): tools/mkfs.c include/fs.h | dirs
+>$(HOSTCC) -Werror -Wall -iquote include -o $@ tools/mkfs.c
 
+$(FS_IMG): $(MKFS) README $(UPROGS) | dirs
+>cp README $(BIN_DIR)/README
+>cd $(BIN_DIR) && ./mkfs fs.img README $(notdir $(UPROGS))
+
+$(XV6_IMG): $(BOOTBLOCK) $(KERNEL) | dirs
+>dd if=/dev/zero of=$@ count=10000
+>dd if=$(BOOTBLOCK) of=$@ conv=notrunc
+>dd if=$(KERNEL) of=$@ seek=1 conv=notrunc
+
+$(XV6_MEMFS_IMG): $(BOOTBLOCK) $(KERNELMEMFS) | dirs
+>dd if=/dev/zero of=$@ count=10000
+>dd if=$(BOOTBLOCK) of=$@ conv=notrunc
+>dd if=$(KERNELMEMFS) of=$@ seek=1 conv=notrunc
+
+CPUS ?= 1
+QEMUOPTS = -enable-kvm -drive file=$(FS_IMG),index=1,media=disk,format=raw -drive file=$(XV6_IMG),index=0,media=disk,format=raw -smp $(CPUS) -m 512
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
-QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
-	then echo "-gdb tcp::$(GDBPORT)"; \
-	else echo "-s -p $(GDBPORT)"; fi)
+QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; then echo "-gdb tcp::$(GDBPORT)"; else echo "-s -p $(GDBPORT)"; fi)
 
-qemu: fs.img xv6.img
-	$(QEMU) -serial mon:stdio $(QEMUOPTS)
+qemu: $(FS_IMG) $(XV6_IMG)
+>$(QEMU) -serial mon:stdio $(QEMUOPTS)
 
-qemu-memfs: xv6memfs.img
-	$(QEMU) -drive file=xv6memfs.img,index=0,media=disk,format=raw -smp $(CPUS) -m 256
+qemu-nox: $(FS_IMG) $(XV6_IMG)
+>$(QEMU) -nographic $(QEMUOPTS)
 
-qemu-nox: fs.img xv6.img
-	$(QEMU) -nographic $(QEMUOPTS)
+qemu-memfs: $(XV6_MEMFS_IMG)
+>$(QEMU) -drive file=$(XV6_MEMFS_IMG),index=0,media=disk,format=raw -smp $(CPUS) -m 256
 
 .gdbinit: .gdbinit.tmpl
-	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
+>sed "s/localhost:1234/localhost:$(GDBPORT)/" < $< > $@
 
-qemu-gdb: fs.img xv6.img .gdbinit
-	@echo "*** Now run 'gdb'." 1>&2
-	$(QEMU) -serial mon:stdio $(QEMUOPTS) -S $(QEMUGDB)
+qemu-gdb: $(FS_IMG) $(XV6_IMG) .gdbinit
+>@echo "*** Now run 'gdb'." 1>&2
+>$(QEMU) -serial mon:stdio $(QEMUOPTS) -S $(QEMUGDB)
 
-qemu-nox-gdb: fs.img xv6.img .gdbinit
-	@echo "*** Now run 'gdb'." 1>&2
-	$(QEMU) -nographic $(QEMUOPTS) -S $(QEMUGDB)
+qemu-nox-gdb: $(FS_IMG) $(XV6_IMG) .gdbinit
+>@echo "*** Now run 'gdb'." 1>&2
+>$(QEMU) -nographic $(QEMUOPTS) -S $(QEMUGDB)
 
-#--------------------------------------------
-# Distribution
-#--------------------------------------------
-EXTRA=\
-	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
-	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
-	printf.c umalloc.c\
-	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
-	.gdbinit.tmpl gdbutil
+clean:
+>rm -rf $(OUT_DIR) .gdbinit
 
-FILES = $(shell grep -v '^\#' runoff.list)
+DEPFILES := \
+ $(BOOTMAIN_OBJ:.o=.d) \
+ $(BOOTASM_OBJ:.o=.d) \
+ $(ENTRY_OBJ:.o=.d) \
+ $(ENTRYOTHER_OBJ:.o=.d) \
+ $(INITCODE_OBJ:.o=.d) \
+ $(KERNEL_OBJS:.o=.d) \
+ $(KERNEL_MEMFS_OBJS:.o=.d) \
+ $(VECTORS_OBJ:.o=.d) \
+ $(USER_LIB_OBJS:.o=.d) \
+ $(USER_APP_OBJS:.o=.d)
 
-dist:
-	rm -rf dist
-	mkdir dist
-	for i in $(FILES); do \
-		grep -v PAGEBREAK $$i > dist/$$i; \
-	done
-	sed '/CUT HERE/,$$d' Makefile > dist/Makefile
-	echo > dist/runoff.spec
-	cp $(EXTRA) dist
-
-dist-test:
-	rm -rf dist
-	make dist
-	rm -rf dist-test
-	mkdir dist-test
-	cp dist/* dist-test
-	cd dist-test; $(MAKE) print
-	cd dist-test; $(MAKE) bochs || true
-	cd dist-test; $(MAKE) qemu
+-include $(DEPFILES)
