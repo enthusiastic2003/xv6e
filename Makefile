@@ -31,7 +31,7 @@ QEMU := $(shell if command -v qemu >/dev/null 2>&1; then echo qemu; \
 endif
 
 # Flags
-CPPFLAGS := -nostdinc -I. -Iinclude -Iinclude/vm
+CPPFLAGS := -nostdinc -I. -Iinclude
 CFLAGS := -Wno-infinite-recursion -g -fno-pic -static -fno-builtin \
  -Wno-array-bounds -fno-strict-aliasing -Os -Wall -Werror -ggdb -m32 \
  -fno-omit-frame-pointer
@@ -48,39 +48,39 @@ endif
 
 # Sources
 KERNEL_C_SRCS := \
- kernel/bio.c \
- kernel/console.c \
- kernel/exec.c \
- kernel/file.c \
- kernel/fs.c \
- kernel/ide.c \
- kernel/ioapic.c \
- kernel/kbd.c \
- kernel/lapic.c \
- kernel/log.c \
- kernel/main.c \
- kernel/mp.c \
- kernel/picirq.c \
- kernel/pipe.c \
- kernel/proc.c \
- kernel/sleeplock.c \
- kernel/spinlock.c \
- kernel/string.c \
- kernel/syscall.c \
- kernel/sysfile.c \
- kernel/sysproc.c \
- kernel/trap.c \
- kernel/uart.c \
- mm/kalloc.c \
- mm/kheap.c \
- mm/liballoc.c \
- mm/vm.c
+ kernel/fs/bio.c \
+ kernel/dev/console.c \
+ kernel/core/exec.c \
+ kernel/fs/file.c \
+ kernel/fs/fs.c \
+ kernel/dev/ide.c \
+ kernel/dev/ioapic.c \
+ kernel/dev/kbd.c \
+ kernel/dev/lapic.c \
+ kernel/fs/log.c \
+ kernel/core/main.c \
+ kernel/smp/mp.c \
+ kernel/dev/picirq.c \
+ kernel/ipc/pipe.c \
+ kernel/proc/proc.c \
+ kernel/sync/sleeplock.c \
+ kernel/sync/spinlock.c \
+ kernel/lib/string.c \
+ kernel/core/syscall.c \
+ kernel/fs/sysfile.c \
+ kernel/core/sysproc.c \
+ kernel/core/trap.c \
+ kernel/dev/uart.c \
+ kernel/mm/kalloc.c \
+ kernel/mm/kheap.c \
+ kernel/mm/liballoc.c \
+ kernel/mm/vm.c
 
 KERNEL_S_SRCS := \
  arch/x86/kernel/swtch.S \
  arch/x86/kernel/trapasm.S
 
-KERNEL_MEMFS_C_SRCS := $(filter-out kernel/ide.c,$(KERNEL_C_SRCS)) kernel/memide.c
+KERNEL_MEMFS_C_SRCS := $(filter-out kernel/dev/ide.c,$(KERNEL_C_SRCS)) kernel/dev/memide.c
 
 USER_PROGS := \
  cat \
@@ -208,7 +208,7 @@ $(BIN_DIR)/_forktest: $(OBJ_DIR)/user/forktest.o $(OBJ_DIR)/user/ulib.o $(OBJ_DI
 >$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $@ $^
 >$(OBJDUMP) -S $@ > $(ASM_DIR)/forktest.asm
 
-$(MKFS): tools/mkfs.c include/fs.h | dirs
+$(MKFS): tools/mkfs.c include/fs/fs.h include/fs/stat.h include/core/param.h | dirs
 >$(HOSTCC) -Werror -Wall -iquote include -o $@ tools/mkfs.c
 
 $(FS_IMG): $(MKFS) README $(UPROGS) | dirs

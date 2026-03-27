@@ -6,10 +6,10 @@
 #include <assert.h>
 
 #define stat xv6_stat  // avoid clash with host struct stat
-// #include "types.h"
-#include "fs.h"
-#include "stat.h"
-#include "param.h"
+// #include "core/types.h"
+#include "fs/fs.h"
+#include "fs/stat.h"
+#include "core/param.h"
 
 typedef unsigned int   uint;
 typedef unsigned short ushort;

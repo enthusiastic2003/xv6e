@@ -1,10 +1,10 @@
 
 #ifndef KHEAP_H
 #define KHEAP_H
-#include "memlayout.h"
-#include "types.h"
-#include "mmu.h"
-#include "vm.h"
+#include "core/memlayout.h"
+#include "core/types.h"
+#include "arch/x86/mmu.h"
+#include "mm/vm.h"
 
 // Kernel heap layout
 #define KHEAP_START (P2V(PHYSTOP))      // KHeap Virtual Address Start: Start right after mapped physical RAM

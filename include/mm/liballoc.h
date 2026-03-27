@@ -1,7 +1,7 @@
 #ifndef _LIBALLOC_H
 #define _LIBALLOC_H
-#include "types.h"
-#include "kheap.h"
+#include "core/types.h"
+#include "mm/kheap.h"
 /** \defgroup ALLOCHOOKS liballoc hooks 
  *
  * These are the OS specific functions which need to

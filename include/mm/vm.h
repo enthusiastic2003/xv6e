@@ -4,7 +4,7 @@
 #ifndef _VM_H_
 #define _VM_H_
 
-#include "types.h"
+#include "core/types.h"
 
 // Forward-declare structs that are used in function signatures
 // but whose definitions are private to the module.

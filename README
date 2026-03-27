@@ -1,51 +1,150 @@
-NOTE: we have stopped maintaining the x86 version of xv6, and switched
-our efforts to the RISC-V version
-(https://github.com/mit-pdos/xv6-riscv.git)
+# xv6e
 
-xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
-Version 6 (v6).  xv6 loosely follows the structure and style of v6,
-but is implemented for a modern x86-based multiprocessor using ANSI C.
+![Platform](https://img.shields.io/badge/platform-x86-lightgrey)
+![Language](https://img.shields.io/badge/language-C%20%2F%20Assembly-blue)
+![Build](https://img.shields.io/badge/build-Makefile-informational)
+![Status](https://img.shields.io/badge/status-active-success)
 
-ACKNOWLEDGMENTS
+This repository is my attempt at extending the xv6 operating system by modernizing its systems and pushing it toward as much maturity as possible while keeping the codebase educational, understandable, and hackable.
 
-xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
-to Peer Communications; ISBN: 1-57398-013-7; 1st edition (June 14,
-2000)). See also https://pdos.csail.mit.edu/6.828/, which
-provides pointers to on-line resources for v6.
+## Project Goals
 
-xv6 borrows code from the following sources:
-    JOS (asm.h, elf.h, mmu.h, bootasm.S, ide.c, console.c, and others)
-    Plan 9 (entryother.S, mp.h, mp.c, lapic.c)
-    FreeBSD (ioapic.c)
-    NetBSD (console.c)
+- Keep xv6's teaching value and simplicity.
+- Modernize repository organization into clearer subsystems.
+- Improve build ergonomics with out-of-tree artifacts.
+- Make iterative kernel experimentation easier and safer.
+- Keep compatibility with x86 + QEMU workflows.
 
-The following people have made contributions: Russ Cox (context switching,
-locking), Cliff Frey (MP), Xiao Yu (MP), Nickolai Zeldovich, and Austin
-Clements.
+## What Has Been Modernized
 
-We are also grateful for the bug reports and patches contributed by Silas
-Boyd-Wickizer, Anton Burtsev, Cody Cutler, Mike CAT, Tej Chajed, eyalz800,
-Nelson Elhage, Saar Ettinger, Alice Ferrazzi, Nathaniel Filardo, Peter
-Froehlich, Yakir Goaron,Shivam Handa, Bryan Henry, Jim Huang, Alexander
-Kapshuk, Anders Kaseorg, kehao95, Wolfgang Keller, Eddie Kohler, Austin
-Liew, Imbar Marinescu, Yandong Mao, Matan Shabtay, Hitoshi Mitake, Carmi
-Merimovich, Mark Morrissey, mtasm, Joel Nider, Greg Price, Ayan Shafqat,
-Eldar Sehayek, Yongming Shen, Cam Tenny, tyfkda, Rafael Ubal, Warren
-Toomey, Stephen Tu, Pablo Ventura, Xi Wang, Keiichi Watanabe, Nicolas
-Wolovick, wxdao, Grant Wu, Jindong Zhang, Icenowy Zheng, and Zou Chang Wei.
+- Reorganized source tree into architecture and subsystem folders.
+- Split kernel implementation by domain (core, fs, dev, proc, sync, mm, etc.).
+- Moved headers into subsystem-specific include paths.
+- Upgraded build pipeline to use dedicated output folders under `build/`.
 
-The code in the files that constitute xv6 is
-Copyright 2006-2018 Frans Kaashoek, Robert Morris, and Russ Cox.
+## Repository Structure
 
-ERROR REPORTS
+```text
+.
+|-- arch/
+|   `-- x86/
+|       |-- boot/            # bootstrap code
+|       `-- kernel/          # arch-specific kernel asm/entry code
+|-- include/
+|   |-- arch/x86/            # arch headers
+|   |-- core/                # core system headers
+|   |-- dev/                 # device headers
+|   |-- fs/                  # filesystem headers
+|   |-- mm/                  # memory-management headers
+|   |-- proc/                # process headers
+|   |-- sync/                # locking/sync headers
+|   `-- user/                # user ABI headers
+|-- kernel/
+|   |-- core/                # traps/syscalls/exec/main
+|   |-- dev/                 # console, ide, uart, apic, etc.
+|   |-- fs/                  # filesystem + log + file layer
+|   |-- ipc/                 # pipe
+|   |-- lib/                 # kernel string/runtime helpers
+|   |-- mm/                  # kalloc, vm, heap allocators
+|   |-- proc/                # process scheduler and state
+|   |-- smp/                 # multiprocessor init
+|   `-- sync/                # spinlock/sleeplock
+|-- linker/                  # linker scripts
+|-- scripts/                 # build helper scripts
+|-- tools/                   # host-side build tools (mkfs)
+|-- user/                    # user-space programs and user libs
+`-- Makefile
+```
 
-We don't process error reports (see note on top of this file).
+## Build System
 
-BUILDING AND RUNNING XV6
+The build is fully out-of-tree.
 
-To build xv6 on an x86 ELF machine (like Linux or FreeBSD), run
-"make". On non-x86 or non-ELF machines (like OS X, even on x86), you
-will need to install a cross-compiler gcc suite capable of producing
-x86 ELF binaries (see https://pdos.csail.mit.edu/6.828/).
-Then run "make TOOLPREFIX=i386-jos-elf-". Now install the QEMU PC
-simulator and run "make qemu".
+- Objects: `build/obj/`
+- Binaries and images: `build/bin/`
+- Generated sources: `build/gen/`
+- Disassembly: `build/asm/`
+- Symbol dumps: `build/sym/`
+
+## Prerequisites
+
+- GNU Make
+- QEMU (`qemu`, `qemu-system-i386`, or `qemu-system-x86_64`)
+- 32-bit x86 ELF cross toolchain (`i686-elf-gcc`, `i686-elf-ld`, etc.)
+
+By default, this Makefile expects:
+
+```text
+/home/sirjanh/i686-elf-tools-linux/bin/i686-elf-*
+```
+
+You can override this at build time:
+
+```sh
+make TOOLCHAIN_ROOT=/path/to/toolchain
+# or
+make TOOLPREFIX=/path/to/bin/i686-elf-
+```
+
+## Quick Start
+
+Build the bootable xv6 image:
+
+```sh
+make clean && make -j2 build/bin/xv6.img
+```
+
+Run with QEMU:
+
+```sh
+make qemu
+```
+
+Run headless:
+
+```sh
+make qemu-nox
+```
+
+Run memory-fs variant:
+
+```sh
+make qemu-memfs
+```
+
+## Common Make Targets
+
+- `make` or `make all`: build default xv6 image
+- `make qemu`: run with graphical QEMU
+- `make qemu-nox`: run in terminal mode
+- `make qemu-gdb`: start QEMU waiting for gdb
+- `make qemu-nox-gdb`: headless + gdb wait
+- `make clean`: remove build outputs
+
+## Development Notes
+
+- This is an actively evolving fork with structural modernization work in progress.
+- The intent is to increase maturity without sacrificing readability.
+- Directory and build conventions are designed to support continued subsystem-level refactoring.
+
+## Roadmap (High Level)
+
+- Continue improving subsystem boundaries.
+- Introduce stricter kernel coding and testing conventions.
+- Improve diagnostics and debugging workflows.
+- Expand documentation for architecture and memory internals.
+
+## Upstream Lineage and Credits
+
+This project is built on top of xv6, a re-implementation of UNIX v6 for teaching operating systems.
+
+Original xv6 acknowledgments apply, including inspiration and contributions from the MIT PDOS community and related open-source systems work (JOS, Plan 9, FreeBSD, NetBSD).
+
+For original xv6 learning resources, see:
+
+- https://pdos.csail.mit.edu/6.828/
+- https://github.com/mit-pdos/xv6-riscv
+
+## License
+
+See [LICENSE](LICENSE).

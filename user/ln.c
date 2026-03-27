@@ -1,6 +1,6 @@
-#include "types.h"
-#include "stat.h"
-#include "user.h"
+#include "core/types.h"
+#include "fs/stat.h"
+#include "user/user.h"
 
 int
 main(int argc, char *argv[])
