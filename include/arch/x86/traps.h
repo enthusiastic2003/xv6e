@@ -36,3 +36,6 @@
 #define IRQ_ERROR       19
 #define IRQ_SPURIOUS    31
 
+
+// max_ticks is max number of ticks before boosting priority
+#define MAX_TICKS 100
