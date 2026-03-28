@@ -24,7 +24,7 @@ void            kfree(char*);    // Free a 4096-byte page
 // ====================================================================
 // === Kernel Heap Allocator (from kheap.c)
 // ====================================================================
-void            kheap_init(void);
+void     kheap_init(void);
 void    *kheap_malloc(size_t);				///< The standard function.
 void    *kheap_realloc(void *, size_t);		///< The standard function.
 void    *kheap_calloc(size_t, size_t);		///< The standard function.

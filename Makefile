@@ -97,7 +97,8 @@ USER_PROGS := \
  stressfs \
  usertests \
  wc \
- zombie
+ zombie \
+ ps
 
 USER_LIB_SRCS := user/ulib.c user/usys.S user/printf.c user/umalloc.c
 
@@ -211,8 +212,8 @@ $(BIN_DIR)/_forktest: $(OBJ_DIR)/user/forktest.o $(OBJ_DIR)/user/ulib.o $(OBJ_DI
 $(MKFS): tools/mkfs.c include/fs/fs.h include/fs/stat.h include/core/param.h | dirs
 >$(HOSTCC) -Werror -Wall -iquote include -o $@ tools/mkfs.c
 
-$(FS_IMG): $(MKFS) README $(UPROGS) | dirs
->cp README $(BIN_DIR)/README
+$(FS_IMG): $(MKFS) README.md $(UPROGS) | dirs
+>cp README.md $(BIN_DIR)/README
 >cd $(BIN_DIR) && ./mkfs fs.img README $(notdir $(UPROGS))
 
 $(XV6_IMG): $(BOOTBLOCK) $(KERNEL) | dirs
