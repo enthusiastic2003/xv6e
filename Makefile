@@ -46,6 +46,10 @@ ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
 endif
 
+ifeq ($(DEEP_VERIFY),1)
+CFLAGS += -DDEEP_VERIFY_BOOT
+endif
+
 # Sources
 KERNEL_C_SRCS := \
  kernel/fs/bio.c \
@@ -59,6 +63,7 @@ KERNEL_C_SRCS := \
  kernel/dev/lapic.c \
  kernel/fs/log.c \
  kernel/core/main.c \
+ kernel/core/mb2.c \
  kernel/smp/mp.c \
  kernel/dev/picirq.c \
  kernel/ipc/pipe.c \
@@ -77,6 +82,7 @@ KERNEL_C_SRCS := \
  kernel/mm/vm.c
 
 KERNEL_S_SRCS := \
+ arch/x86/kernel/segreload.S \
  arch/x86/kernel/swtch.S \
  arch/x86/kernel/trapasm.S
 
@@ -104,8 +110,6 @@ USER_LIB_SRCS := user/ulib.c user/usys.S user/printf.c user/umalloc.c
 
 # Paths
 ENTRY_OBJ := $(OBJ_DIR)/arch/x86/kernel/entry.o
-BOOTMAIN_OBJ := $(OBJ_DIR)/arch/x86/boot/bootmain.o
-BOOTASM_OBJ := $(OBJ_DIR)/arch/x86/boot/bootasm.o
 ENTRYOTHER_OBJ := $(OBJ_DIR)/arch/x86/kernel/entryother.o
 INITCODE_OBJ := $(OBJ_DIR)/arch/x86/kernel/initcode.o
 VECTORS_GEN := $(GEN_DIR)/vectors.S
@@ -126,20 +130,26 @@ UPROGS := $(addprefix $(BIN_DIR)/_,$(USER_PROGS))
 
 MKFS := $(BIN_DIR)/mkfs
 FS_IMG := $(BIN_DIR)/fs.img
-BOOTBLOCK := $(BIN_DIR)/bootblock
 ENTRYOTHER := $(BIN_DIR)/entryother
 INITCODE := $(BIN_DIR)/initcode
 KERNEL := $(BIN_DIR)/kernel
 KERNELMEMFS := $(BIN_DIR)/kernelmemfs
-XV6_IMG := $(BIN_DIR)/xv6.img
-XV6_MEMFS_IMG := $(BIN_DIR)/xv6memfs.img
+ISO_ROOT := $(BIN_DIR)/iso
+ISO_BOOT := $(ISO_ROOT)/boot
+ISO_GRUB := $(ISO_BOOT)/grub
+GRUB_CFG := $(ISO_GRUB)/grub.cfg
+XV6_ISO := $(BIN_DIR)/xv6.iso
+GRUB_MKRESCUE ?= grub-mkrescue
 INITCODE_BLOB_OBJ := $(OBJ_DIR)/blob/initcode.blob.o
 ENTRYOTHER_BLOB_OBJ := $(OBJ_DIR)/blob/entryother.blob.o
 FSIMG_BLOB_OBJ := $(OBJ_DIR)/blob/fsimg.blob.o
 
-.PHONY: all clean qemu qemu-nox qemu-gdb qemu-nox-gdb qemu-memfs dirs
+.PHONY: all clean deep qemu qemu-nox qemu-gdb qemu-nox-gdb qemu-deep qemu-nox-deep dirs
 
-all: $(XV6_IMG)
+all: $(XV6_ISO)
+
+deep:
+>$(MAKE) DEEP_VERIFY=1 all
 
 dirs:
 >@mkdir -p $(OBJ_DIR) $(BIN_DIR) $(GEN_DIR) $(ASM_DIR) $(SYM_DIR)
@@ -158,12 +168,6 @@ $(VECTORS_GEN): arch/x86/kernel/vectors.pl | dirs
 $(VECTORS_OBJ): $(VECTORS_GEN) | dirs
 >@mkdir -p $(dir $@)
 >$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
-
-$(BOOTBLOCK): $(BOOTMAIN_OBJ) $(BOOTASM_OBJ) scripts/sign.pl | dirs
->$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o $(OBJ_DIR)/bootblock.o $(BOOTASM_OBJ) $(BOOTMAIN_OBJ)
->$(OBJDUMP) -S $(OBJ_DIR)/bootblock.o > $(ASM_DIR)/bootblock.asm
->$(OBJCOPY) -S -O binary -j .text $(OBJ_DIR)/bootblock.o $@
->./scripts/sign.pl $@
 
 $(ENTRYOTHER): $(ENTRYOTHER_OBJ) | dirs
 >$(LD) $(LDFLAGS) -N -e start -Ttext 0x7000 -o $(OBJ_DIR)/entryother.out $(ENTRYOTHER_OBJ)
@@ -216,47 +220,46 @@ $(FS_IMG): $(MKFS) README.md $(UPROGS) | dirs
 >cp README.md $(BIN_DIR)/README
 >cd $(BIN_DIR) && ./mkfs fs.img README $(notdir $(UPROGS))
 
-$(XV6_IMG): $(BOOTBLOCK) $(KERNEL) | dirs
->dd if=/dev/zero of=$@ count=10000
->dd if=$(BOOTBLOCK) of=$@ conv=notrunc
->dd if=$(KERNEL) of=$@ seek=1 conv=notrunc
-
-$(XV6_MEMFS_IMG): $(BOOTBLOCK) $(KERNELMEMFS) | dirs
->dd if=/dev/zero of=$@ count=10000
->dd if=$(BOOTBLOCK) of=$@ conv=notrunc
->dd if=$(KERNELMEMFS) of=$@ seek=1 conv=notrunc
+$(XV6_ISO): $(KERNEL) $(FS_IMG) scripts/grub.cfg | dirs
+>@mkdir -p $(ISO_GRUB)
+>if ! command -v $(GRUB_MKRESCUE) >/dev/null 2>&1; then echo "*** Error: $(GRUB_MKRESCUE) not found"; echo "*** Install grub-mkrescue and xorriso to build ISO"; exit 1; fi
+>cp $(KERNEL) $(ISO_BOOT)/kernel
+>cp $(FS_IMG) $(ISO_BOOT)/fs.img
+>cp scripts/grub.cfg $(GRUB_CFG)
+>$(GRUB_MKRESCUE) -o $@ $(ISO_ROOT)
 
 CPUS ?= 1
-QEMUOPTS = -enable-kvm -drive file=$(FS_IMG),index=1,media=disk,format=raw -drive file=$(XV6_IMG),index=0,media=disk,format=raw -smp $(CPUS) -m 512
+QEMUOPTS = -enable-kvm -cdrom $(XV6_ISO) -boot d -smp $(CPUS) -m 512
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
 QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; then echo "-gdb tcp::$(GDBPORT)"; else echo "-s -p $(GDBPORT)"; fi)
 
-qemu: $(FS_IMG) $(XV6_IMG)
+qemu: $(XV6_ISO)
 >$(QEMU) -serial mon:stdio $(QEMUOPTS)
 
-qemu-nox: $(FS_IMG) $(XV6_IMG)
+qemu-nox: $(XV6_ISO)
 >$(QEMU) -nographic $(QEMUOPTS)
-
-qemu-memfs: $(XV6_MEMFS_IMG)
->$(QEMU) -drive file=$(XV6_MEMFS_IMG),index=0,media=disk,format=raw -smp $(CPUS) -m 256
 
 .gdbinit: .gdbinit.tmpl
 >sed "s/localhost:1234/localhost:$(GDBPORT)/" < $< > $@
 
-qemu-gdb: $(FS_IMG) $(XV6_IMG) .gdbinit
+qemu-gdb: $(XV6_ISO) .gdbinit
 >@echo "*** Now run 'gdb'." 1>&2
 >$(QEMU) -serial mon:stdio $(QEMUOPTS) -S $(QEMUGDB)
 
-qemu-nox-gdb: $(FS_IMG) $(XV6_IMG) .gdbinit
+qemu-nox-gdb: $(XV6_ISO) .gdbinit
 >@echo "*** Now run 'gdb'." 1>&2
 >$(QEMU) -nographic $(QEMUOPTS) -S $(QEMUGDB)
+
+qemu-deep:
+>$(MAKE) DEEP_VERIFY=1 qemu
+
+qemu-nox-deep:
+>$(MAKE) DEEP_VERIFY=1 qemu-nox
 
 clean:
 >rm -rf $(OUT_DIR) .gdbinit
 
 DEPFILES := \
- $(BOOTMAIN_OBJ:.o=.d) \
- $(BOOTASM_OBJ:.o=.d) \
  $(ENTRY_OBJ:.o=.d) \
  $(ENTRYOTHER_OBJ:.o=.d) \
  $(INITCODE_OBJ:.o=.d) \

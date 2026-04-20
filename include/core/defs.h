@@ -119,6 +119,7 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 void            boost_priority(void);
+void            x86_segreload(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -173,6 +174,20 @@ void            uartputc(int);
 
 // ps.c
 int             getprocs(int, struct uproc*);
+
+// mb2.c
+void            mb2_early_init(void);
+uint            mb2_boot_magic_value(void);
+uint            mb2_info_ptr_pa_value(void);
+uint            mb2_info_total_size(void);
+char*           mb2_bootloader_name(void);
+uint            mb2_module_count(void);
+int             mb2_fs_module_bounds(uint*, uint*);
+int             mb2_mmap_info(uint*, uint*, uint*, uint*);
+int             mb2_pa_range_reserved(uint, uint);
+void            mb2_print_mem_layout(void);
+extern uint     mb2_boot_magic;
+extern uint     mb2_info_ptr_pa;
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

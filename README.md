@@ -70,6 +70,7 @@ The build is fully out-of-tree.
 
 - GNU Make
 - QEMU (`qemu`, `qemu-system-i386`, or `qemu-system-x86_64`)
+- GRUB ISO tooling (`grub-mkrescue` and `xorriso`)
 - 32-bit x86 ELF cross toolchain (`i686-elf-gcc`, `i686-elf-ld`, etc.)
 
 By default, this Makefile expects:
@@ -88,10 +89,10 @@ make TOOLPREFIX=/path/to/bin/i686-elf-
 
 ## Quick Start
 
-Build the bootable xv6 image:
+Build the bootable ISO:
 
 ```sh
-make clean && make -j2 build/bin/xv6.img
+make clean && make -j2 build/bin/xv6.iso
 ```
 
 Run with QEMU:
@@ -106,15 +107,9 @@ Run headless:
 make qemu-nox
 ```
 
-Run memory-fs variant:
-
-```sh
-make qemu-memfs
-```
-
 ## Common Make Targets
 
-- `make` or `make all`: build default xv6 image
+- `make` or `make all`: build default xv6 ISO
 - `make qemu`: run with graphical QEMU
 - `make qemu-nox`: run in terminal mode
 - `make qemu-gdb`: start QEMU waiting for gdb
