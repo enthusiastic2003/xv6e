@@ -5,6 +5,7 @@
 #define _VM_H_
 
 #include "core/types.h"
+#include "arch/x86/mmu.h"
 
 // Forward-declare structs that are used in function signatures
 // but whose definitions are private to the module.
@@ -40,6 +41,7 @@ void            seginit(void);
 void            kvmalloc(void);
 pde_t* setupkvm(void);
 void            switchkvm(void);
+void            vm_prealloc_kheap(void);
 int             vm_kernel_sanity_check(void);
 void            vm_kernel_report(void);
 int             kheap_sanity_check(void);
@@ -59,5 +61,7 @@ pde_t* copyuvm(pde_t*, uint);
 void            switchuvm(struct proc*);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
+pte_t*          walkpgdir(pde_t *pgdir, const void *va, int alloc);
+int             mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 
 #endif // _VM_H_

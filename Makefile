@@ -79,6 +79,7 @@ KERNEL_C_SRCS := \
  kernel/mm/kalloc.c \
  kernel/mm/kheap.c \
  kernel/mm/liballoc.c \
+ kernel/mm/vma.c \
  kernel/mm/vm.c
 
 KERNEL_S_SRCS := \
@@ -104,7 +105,8 @@ USER_PROGS := \
  usertests \
  wc \
  zombie \
- ps
+ ps \
+ mmap_test
 
 USER_LIB_SRCS := user/ulib.c user/usys.S user/printf.c user/umalloc.c
 

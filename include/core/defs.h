@@ -177,6 +177,7 @@ int             getprocs(int, struct uproc*);
 
 // mb2.c
 void            mb2_early_init(void);
+uint            mb2_get_phystop(void);
 uint            mb2_boot_magic_value(void);
 uint            mb2_info_ptr_pa_value(void);
 uint            mb2_info_total_size(void);

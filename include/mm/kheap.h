@@ -6,6 +6,11 @@
 #include "arch/x86/mmu.h"
 #include "mm/vm.h"
 
+#ifndef __ASSEMBLER__
+extern char end[];
+extern unsigned int phystop;
+#endif
+
 // Kernel heap layout
 #define KHEAP_START (P2V(PHYSTOP))      // KHeap Virtual Address Start: Start right after mapped physical RAM
 #define KHEAP_END   DEVSPACE              // KHeap Virtual Address End: End right before device memory

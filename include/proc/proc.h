@@ -34,6 +34,8 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+struct vma;
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -52,6 +54,7 @@ struct proc {
   int priority;                // Process priority (0, 1, or 2)
   int ticks_used;              // Number of ticks used in the current time slice
   struct proc *next_p;           // Pointer to the next process in this queue
+  struct vma *vma_head;          // Head of the VMA linked list
 };
 
 // Process memory is laid out contiguously, low addresses first:
